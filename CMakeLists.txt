@@ -31,7 +31,7 @@ endif()
 
 #------------------------------------------------------
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 #------------------------------------------------------
 
@@ -47,6 +47,7 @@ list(APPEND CMAKE_SYSTEM_LIBRARY_PATH ${EXTRA_SYSTEM_LIBRARY_PATH})
 add_subdirectory(dependencies/armadillo-code)
 include_directories(SYSTEM dependencies/armadillo-code/include)
 include_directories(SYSTEM dependencies/optim/header_only_version)
+include_directories(SYSTEM dependencies/mapbox-variant/include)
 
 #------------------------------------------------------
 

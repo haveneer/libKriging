@@ -5,6 +5,7 @@ add_library(Kriging
         demo/DemoClass.cpp include/libKriging/demo/DemoClass.hpp
         demo/DemoFunction.cpp include/libKriging/demo/DemoFunction.hpp
         demo/DemoArmadilloClass.cpp include/libKriging/demo/DemoArmadilloClass.hpp
+        demo/DemoDataFrame.cpp include/libKriging/demo/DemoDataFrame.hpp
         LinearRegression.cpp include/libKriging/LinearRegression.hpp
         LinearRegressionOptim.cpp include/libKriging/LinearRegressionOptim.hpp
         OrdinaryKriging.cpp include/libKriging/OrdinaryKriging.hpp)
@@ -74,6 +75,7 @@ install(EXPORT libKriging-export
         )
 install(DIRECTORY
         include/libKriging
+        include/mapbox
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
 install(FILES
