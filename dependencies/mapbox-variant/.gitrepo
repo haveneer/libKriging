@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/mapbox/variant.git
+	branch = master
+	commit = c94634bbd294204c9ba3f5b267a39582a52e8e5a
+	parent = d7c491bdc83980a536235bbd84c5a0559a759a8c
+	method = merge
+	cmdver = 0.4.0
