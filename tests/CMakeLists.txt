@@ -24,6 +24,10 @@ add_executable(regression_unit_test regression_unit_test.cpp)
 target_link_libraries(regression_unit_test LINK_PUBLIC Kriging Catch2)
 add_dependencies(all_test_binaries regression_unit_test)
 
+add_executable(bench-OrdinaryKrigingFit bench-OrdinaryKrigingFit.cpp)
+target_link_libraries(bench-OrdinaryKrigingFit LINK_PUBLIC Kriging Catch2)
+add_dependencies(all_test_binaries bench-OrdinaryKrigingFit)
+
 # Can be enabled if necessary
 #if (CXX_CLANG_TIDY)
 #    foreach (bin ${all_test_binaries})
@@ -43,3 +47,4 @@ add_test(NAME demo/armadillo_example COMMAND armadillo_example)
 # Test using catch2 (parse catch tests)
 ParseAndAddCatchTests(catch2_unit_test)
 ParseAndAddCatchTests(regression_unit_test)
+ParseAndAddCatchTests(bench-OrdinaryKrigingFit)
