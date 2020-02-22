@@ -33,9 +33,27 @@ class OrdinaryKriging {
   arma::vec m_theta;
   double m_sigma2;
 
-  std::function<double(const arma::vec&, const arma::vec&)> CovNorm_fun;  // Covariance function on normalized data
-  std::function<double(const arma::vec&, const arma::vec&, int)> CovNorm_deriv;  // Covariance function derivative vs. theta
-    
+  //' @ref https://github.com/cran/DiceKriging/blob/master/src/CovFuns.c
+  // Covariance function on normalized data
+  double CovNorm_fun2(const arma::vec &xi, const arma::vec &xj) const {
+    double temp = 0;
+    for (arma::uword k = 0; k < xi.n_elem; k++) {
+      double d = (xi(k) - xj(k));
+      temp += d*d;
+    }
+    return exp(-0.5*temp);
+  };
+
+  // Covariance function derivative vs. theta
+  double CovNorm_deriv2(const arma::vec &xi, const arma::vec &xj, int dim) const {
+    double temp = 0;
+    for (arma::uword k = 0; k < xi.n_elem; k++) {
+      double d = (xi(k) - xj(k));
+      temp += d*d;
+    }
+    return exp(-.5*temp) * (xi(dim) - xj(dim))*(xi(dim) - xj(dim));
+  };
+
   // returns distance matrix form Xp to X
   LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X, const arma::mat& Xp);
   LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X);
@@ -45,15 +63,14 @@ class OrdinaryKriging {
   // This will create the dist(xi,xj) function above. Need to parse "kernel".
   void make_Cov(const std::string& covType);
 
- public:
   struct OKModel {
-    arma::colvec y;
-    arma::mat X;
     arma::mat T;
     arma::colvec z;
-    std::function<double(const arma::vec&, const arma::vec&)> covnorm_fun;
-    std::function<double(const arma::vec&, const arma::vec&, int)> covnorm_deriv;
   };
+
+  double fit_ofn(const arma::vec& _theta, arma::vec* grad_out, OrdinaryKriging::OKModel* okm_data) const;
+
+ public:
 
   // LIBKRIGING_EXPORT double fit_ofn(const arma::vec& theta, arma::vec* grad_out, OKModel* okm_data);
 
