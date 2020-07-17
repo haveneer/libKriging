@@ -19,23 +19,34 @@ fi
 
 if [[ "$ENABLE_OCTAVE_BINDING" == "on" ]]; then
   case "$(uname -s)" in
-   Darwin)
-     # using brew in .travis-ci.yml is too slow or fails with "update: true"
-     brew install octave
-     ;;
+  Darwin)
+    # try to reuse an pre-existing octave installation
+    OCTAVE_BIN=$(find /usr/local/Cellar/octave/*/bin -name "octave" 2>/dev/null || /bin/echo)
+    if [[ -n "${OCTAVE_BIN}" ]]; then
+      OCTAVE_DIR=$(dirname ${OCTAVE_BIN})
+      LOCAL_DIR=/usr/local/bin
+      mkdir -p ${LOCAL_DIR}
+      ln -sf ${OCTAVE_DIR}/octave ${LOCAL_DIR}
+      ln -sf ${OCTAVE_DIR}/octave-config ${LOCAL_DIR}
+      ln -sf ${OCTAVE_DIR}/mkoctfile ${LOCAL_DIR}
+    else
+      # using brew in .travis-ci.yml is too slow or fails with "update: true"
+      brew install octave
+    fi
+    ;;
 
-   Linux)
-     sudo apt-get install -y software-properties-common
-     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key 291F9FF6FD385783
-     sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
-     sudo apt-get install -y cmake # requires cmake ≥3.13 for target_link_options
-     test -d /usr/local/cmake-3.12.4 && sudo mv /usr/local/cmake-3.12.4 /usr/local/cmake-3.12.4.old # Overrides Travis installation
-     # octave 4 is installed using travis
-     ;;
-
+  Linux)
+    sudo apt-get install -y software-properties-common
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key 291F9FF6FD385783
+    sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
+    sudo apt-get install -y cmake # requires cmake ≥3.13 for target_link_options
+    test -d /usr/local/cmake-3.12.4 && sudo mv /usr/local/cmake-3.12.4 /usr/local/cmake-3.12.4.old # Overrides Travis installation
+    # octave 4 is installed using travis
+    ;;
+  
    *)
-     echo 'Unknown OS'
-     exit 1 
-     ;;
+    echo 'Unknown OS'
+    exit 1 
+    ;;
   esac
 fi
