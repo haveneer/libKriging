@@ -18,21 +18,49 @@ class OrdinaryKriging {
     bool has_theta;
   };
 
- private:
-  arma::mat X;
-  arma::colvec y;
-  arma::mat T;
-  arma::colvec z;
-  arma::vec theta;
-  double sigma2;
+  enum class RegressionModel { Constant, Linear, Quadratic };
 
-  std::function<double(const arma::rowvec&, const arma::rowvec&, const arma::vec&)> Cov_fun;  // Covariance function
-  std::function<double(const arma::rowvec&, const arma::rowvec&, const arma::vec&, int)>
-      Cov_deriv;  // Covariance function derivative vs. theta
+  struct RegressionModelUtils {
+    LIBKRIGING_EXPORT static RegressionModel fromString(const std::string& s);
+    LIBKRIGING_EXPORT static std::string toString(const RegressionModel& m);
+  };
+
+  const arma::mat& X() const { return m_X; };
+  const arma::rowvec& centerX() const { return m_centerX; };
+  const arma::rowvec& scaleX() const { return m_scaleX; };
+  const arma::colvec& y() const { return m_y; };
+  const double& centerY() const { return m_centerY; };
+  const double& scaleY() const { return m_scaleY; };
+  const RegressionModel& regmodel() const { return m_regmodel; };
+  const arma::mat& F() const { return m_F; };
+  const arma::mat& T() const { return m_T; };
+  const arma::mat& M() const { return m_M; };
+  const arma::colvec& z() const { return m_z; };
+  const arma::colvec& beta() const { return m_beta; };
+  const arma::vec& theta() const { return m_theta; };
+  const double& sigma2() const { return m_sigma2; };
+
+ private:
+  arma::mat m_X;
+  arma::rowvec m_centerX;
+  arma::rowvec m_scaleX;
+  arma::colvec m_y;
+  double m_centerY;
+  double m_scaleY;
+  RegressionModel m_regmodel;
+  arma::mat m_F;
+  arma::mat m_T;
+  arma::mat m_M;
+  arma::colvec m_z;
+  arma::colvec m_beta;
+  arma::vec m_theta;
+  double m_sigma2;
+  std::function<double(arma::subview_col<double>&&, arma::subview_col<double>&&)> CovNorm_fun;
+  std::function<double(arma::subview_col<double>&&, arma::subview_col<double>&&, int)> CovNorm_deriv;
 
   // returns distance matrix form Xp to X
-  LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X, const arma::mat& Xp, const arma::vec& theta);
-  LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X, const arma::vec& theta);
+  LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X, const arma::mat& Xp);
+  LIBKRIGING_EXPORT arma::mat Cov(const arma::mat& X);
   //  // same for one point
   //  LIBKRIGING_EXPORT arma::colvec Cov(const arma::mat& X, const arma::rowvec& x, const arma::colvec& theta);
 
@@ -41,34 +69,38 @@ class OrdinaryKriging {
 
  public:
   struct OKModel {
-    arma::colvec y;
-    arma::mat X;
     arma::mat T;
+    arma::mat M;
     arma::colvec z;
-    std::function<double(const arma::rowvec&, const arma::rowvec&, const arma::vec&)> cov_fun;
-    std::function<double(const arma::rowvec&, const arma::rowvec&, const arma::vec&, int)> cov_deriv;
+    arma::colvec beta;
   };
 
-  // LIBKRIGING_EXPORT double fit_ofn(const arma::vec& theta, arma::vec* grad_out, OKModel* okm_data);
+  double fit_ofn(const arma::vec& _theta, arma::vec* grad_out, OrdinaryKriging::OKModel* okm_data) const;
+  double fit_ofn2(const arma::vec& _theta, arma::vec* grad_out, OrdinaryKriging::OKModel* okm_data) const;
 
   // at least, just call make_dist(kernel)
-  LIBKRIGING_EXPORT OrdinaryKriging();  // const std::string & covType);
+  LIBKRIGING_EXPORT OrdinaryKriging(const std::string& covType);
 
   /** Fit the kriging object on (X,y):
    * @param y is n length column vector of output
    * @param X is n*d matrix of input
+   * @param regmodel is the regression model to be used for the GP mean (choice between contant, linear, quadratic)
    * @param parameters is starting value for hyper-parameters
    * @param optim_method is an optimizer name from OptimLib, or 'none' to keep parameters unchanged
    * @param optim_objective is 'loo' or 'loglik'. Ignored if optim_method=='none'.
    */
   LIBKRIGING_EXPORT void fit(const arma::colvec& y,
-                             const arma::mat& X);  //,
+                             const arma::mat& X,
+                             const RegressionModel& regmodel = RegressionModel::Constant,
+                             bool normalize = false);  //,
   // const Parameters& parameters,
   // const std::string& optim_method,
   // const std::string& optim_objective);
 
   LIBKRIGING_EXPORT double logLikelihood(const arma::vec& theta);
   LIBKRIGING_EXPORT arma::vec logLikelihoodGrad(const arma::vec& theta);
+  LIBKRIGING_EXPORT double loofun(const arma::vec& theta);
+  LIBKRIGING_EXPORT arma::vec loofungrad(const arma::vec& theta);
 
   /** Compute the prediction for given points X'
    * @param Xp is m*d matrix of points where to predict output

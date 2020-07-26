@@ -9,11 +9,7 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 # this is due to line: configure_file(${PROJECT_SOURCE_DIR}/examples/Makefile.cmake ${PROJECT_SOURCE_DIR}/examples/Makefile)
 # set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 
-# VERSION must follow pattern : <major>.<minor>.<patch>
-set(KRIGING_VERSION_MAJOR 0)
-set(KRIGING_VERSION_MINOR 0)
-set(KRIGING_VERSION_PATCH 0)
-set(KRIGING_VERSION "${KRIGING_VERSION_MAJOR}.${KRIGING_VERSION_MINOR}.${KRIGING_VERSION_PATCH}")
+include(cmake/version.cmake)
 
 project(libKriging
         VERSION ${KRIGING_VERSION}
@@ -24,14 +20,80 @@ project(libKriging
 
 # Prevent from root system installation
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/installed" CACHE PATH "default install path" FORCE)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/installed" CACHE PATH "default install path" FORCE)
     # Force update for sub-libraries (to follow current installation directive)
     set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT FALSE CACHE BOOL "Installation prefix has been set" FORCE)
-endif()
+endif ()
 
 #------------------------------------------------------
 
-set(CMAKE_CXX_STANDARD 11)
+set(LIBKRIGING_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(LIBKRIGING_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+include(${LIBKRIGING_SOURCE_DIR}/cmake/configuration.cmake)
+
+#------------------------------------------------------
+
+#option(BUILD_SHARED_LIBS "Build the shared library" ON) # BUILD_SHARED_LIBS config should be after armadillo config
+#option(BUILD_STATIC_LIBS "Build the static library" ON) # TODO not yet implemented; today, equivalent to BUILD_SHARED_LIBS=off 
+option(LIBKRIGING_BENCHMARK_TESTS "Enable benchmark tests while testing" OFF)
+
+#------------------------------------------------------
+# Check options
+
+# Default build type is RelWIthDebInfo
+if (NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+            "Choose the type of build: Debug Release RelWithDebInfo MinSizeRel Coverage"
+            FORCE)
+else ()
+    string(REGEX MATCH "^(Debug|Release|RelWithDebInfo|MinSizeRel|Coverage)$" VALID_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+    if (VALID_BUILD_TYPE STREQUAL "")
+        logFatalError("Invalid CMAKE_BUILD_TYPE: '${CMAKE_BUILD_TYPE}'")
+    endif ()
+endif ()
+
+# ENABLE_STATIC_ANALYSIS default is AUTO
+string(TOUPPER "${ENABLE_STATIC_ANALYSIS}" ENABLE_STATIC_ANALYSIS)
+if (NOT DEFINED ENABLE_STATIC_ANALYSIS OR ENABLE_STATIC_ANALYSIS STREQUAL "")
+    set(ENABLE_STATIC_ANALYSIS "AUTO" CACHE STRING
+            "Enable static analysis; choose between ON, OFF and AUTO (if available and Debug mode)"
+            FORCE)
+else ()
+    string(REGEX MATCH "^(ON|OFF|AUTO)$" VALID_STATIC_ANALYSIS "${ENABLE_STATIC_ANALYSIS}")
+    if (VALID_STATIC_ANALYSIS STREQUAL "") # /!\ IF(VALID_STATIC_ANALYSIS) is false when ENABLE_STATIC_ANALYSIS is OFF
+        logFatalError("Invalid ENABLE_STATIC_ANALYSIS option '${ENABLE_STATIC_ANALYSIS}'; choose between ON, OFF and AUTO.")
+    endif ()
+endif ()
+
+# ENABLE_OCTAVE_BINDING default is AUTO
+string(TOUPPER "${ENABLE_OCTAVE_BINDING}" ENABLE_OCTAVE_BINDING)
+if (NOT DEFINED ENABLE_OCTAVE_BINDING OR ENABLE_OCTAVE_BINDING STREQUAL "")
+    set(ENABLE_OCTAVE_BINDING "AUTO" CACHE STRING
+            "Enable static analysis; choose between ON, OFF and AUTO (if available and Debug mode)"
+            FORCE)
+else ()
+    string(REGEX MATCH "^(ON|OFF|AUTO)$" VALID_OCTAVE_BINDING "${ENABLE_OCTAVE_BINDING}")
+    if (VALID_OCTAVE_BINDING STREQUAL "") # /!\ IF(VALID_OCTAVE_BINDING) is false when ENABLE_OCTAVE_BINDING is OFF
+        logFatalError("Invalid ENABLE_OCTAVE_BINDING option '${ENABLE_OCTAVE_BINDING}'; choose between ON, OFF and AUTO.")
+    endif ()
+endif ()
+
+# ENABLE_PYTHON_BINDING default is AUTO
+string(TOUPPER "${ENABLE_PYTHON_BINDING}" ENABLE_PYTHON_BINDING)
+if (NOT DEFINED ENABLE_PYTHON_BINDING OR ENABLE_PYTHON_BINDING STREQUAL "")
+    set(ENABLE_PYTHON_BINDING "AUTO" CACHE STRING
+            "Enable static analysis; choose between ON, OFF and AUTO (if available and Debug mode)"
+            FORCE)
+else ()
+    string(REGEX MATCH "^(ON|OFF|AUTO)$" VALID_PYTHON_BINDING "${ENABLE_PYTHON_BINDING}")
+    if (VALID_PYTHON_BINDING STREQUAL "") # /!\ IF(VALID_PYTHON_BINDING) is false when ENABLE_PYTHON_BINDING is OFF
+        logFatalError("Invalid ENABLE_PYTHON_BINDING option '${ENABLE_PYTHON_BINDING}'; choose between ON, OFF and AUTO.")
+    endif ()
+endif ()
+
+#------------------------------------------------------
+
+set(CMAKE_CXX_STANDARD 17)
 
 #------------------------------------------------------
 
@@ -44,6 +106,8 @@ option(EXTRA_SYSTEM_LIBRARY_PATH "Path to add to default system library path for
 list(APPEND CMAKE_SYSTEM_LIBRARY_PATH ${EXTRA_SYSTEM_LIBRARY_PATH})
 
 # Dependencies
+set(DETECT_HDF5 false CACHE BOOL "Disable HDF5 to avoid conflict with armadillo") # prevent issue #40
+set(CMAKE_POLICY_DEFAULT_CMP0048 NEW) # disable warning about missing version in project command
 add_subdirectory(dependencies/armadillo-code)
 include_directories(SYSTEM dependencies/armadillo-code/include)
 include_directories(SYSTEM dependencies/optim/header_only_version)
@@ -56,12 +120,12 @@ if (NOT DEFINED BUILD_SHARED_LIBS)
     set(BUILD_SHARED_LIBS on
             CACHE BOOL "Global flag to cause add_library to create shared libraries if on"
             FORCE)
-endif()
+endif ()
 if (BUILD_SHARED_LIBS)
     message(STATUS "Build shared library")
-else()
+else ()
     message(STATUS "Build static library")
-endif()
+endif ()
 
 #------------------------------------------------------
 
@@ -69,20 +133,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #------------------------------------------------------
 
-set(LIBKRIGING_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(LIBKRIGING_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-
-#------------------------------------------------------
-
 # Change RelWithDebInfo to compile assertions
 SET("CMAKE_CXX_FLAGS_RELWITHDEBINFO"
         "-g -O2"
         CACHE STRING "Flags used by the compiler during release builds with debug info and assertions"
-        FORCE )
+        FORCE)
 SET("CMAKE_C_FLAGS_RELWITHDEBINFO"
         "-g -O2"
         CACHE STRING "Flags used by the compiler during release builds with debug info and assertions"
-        FORCE )
+        FORCE)
 
 # Add new build types
 # --coverage option is used to compile and link code instrumented for coverage analysis.
@@ -90,38 +149,24 @@ SET("CMAKE_C_FLAGS_RELWITHDEBINFO"
 set(CMAKE_CXX_FLAGS_COVERAGE
         "-g -O0 --coverage"
         CACHE STRING "Flags used by the C++ compiler during coverage builds."
-        FORCE )
+        FORCE)
 set(CMAKE_C_FLAGS_COVERAGE
         "-g -O0 --coverage"
         CACHE STRING "Flags used by the C compiler during coverage builds."
-        FORCE )
+        FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_COVERAGE
         "--coverage"
         CACHE STRING "Flags used for linking binaries during coverage builds."
-        FORCE )
+        FORCE)
 set(CMAKE_SHARED_LINKER_FLAGS_COVERAGE
         "--coverage"
         CACHE STRING "Flags used by the shared libraries linker during coverage builds."
-        FORCE )
+        FORCE)
 mark_as_advanced(
         CMAKE_CXX_FLAGS_COVERAGE
         CMAKE_C_FLAGS_COVERAGE
         CMAKE_EXE_LINKER_FLAGS_COVERAGE
-        CMAKE_SHARED_LINKER_FLAGS_COVERAGE )
-
-if(CMAKE_BUILD_TYPE)
-    string(REGEX MATCH "(Debug|Release|RelWithDebInfo|MinSizeRel|Coverage)" VALID_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
-    if(NOT VALID_BUILD_TYPE)
-        message(FATAL_ERROR "Invalid CMAKE_BUILD_TYPE: '${CMAKE_BUILD_TYPE}'")
-    endif()
-endif()
-
-# Default build type is RelWIthDebInfo
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
-            "Choose the type of build: Debug Release RelWithDebInfo MinSizeRel Coverage."
-            FORCE)
-endif()
+        CMAKE_SHARED_LINKER_FLAGS_COVERAGE)
 
 #------------------------------------------------------
 
@@ -134,10 +179,17 @@ add_definitions(/DARMA_32BIT_WORD)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(LIBKRIGING_CXX_FLAGS "${LIBKRIGING_CXX_FLAGS} -Wall -Wextra")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    if (WIN32 AND MINGW) # https://stackoverflow.com/questions/16596876/object-file-has-too-many-sections
+        set(LIBKRIGING_CXX_FLAGS "${LIBKRIGING_CXX_FLAGS} -Wa,-mbig-obj")
+    endif()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     set(LIBKRIGING_CXX_FLAGS "${LIBKRIGING_CXX_FLAGS} -Wall -Wextra")
     set(LIBKRIGING_CXX_FLAGS "${LIBKRIGING_CXX_FLAGS} -Wsign-compare -Wunused -Wunused-member-function -Wunused-private-field")
-endif()
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # workaround like https://github.com/nlohmann/json/issues/1408
+    # to avoid error like: carma\third_party\armadillo-code\include\armadillo_bits/arma_str.hpp(194): error C2039: '_snprintf': is not a member of 'std' (compiling source file carma\tests\src\bindings.cpp) 
+    ADD_DEFINITIONS(-DHAVE_SNPRINTF)
+endif ()
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBKRIGING_CXX_FLAGS}")
@@ -147,14 +199,129 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBKRIGING_CXX_FLAGS}")
 # search for clang-tidy (while be used while adding library or executable)
 find_program(CLANG_TIDY clang-tidy)
 if (CLANG_TIDY)
-    if (CMAKE_BUILD_TYPE MATCHES Debug)
+    if (ENABLE_STATIC_ANALYSIS STREQUAL "ON")
         set(CXX_CLANG_TIDY ${CLANG_TIDY})
-        message(STATUS "Static analysis using clang-tidy is enabled while compiling.")
+        message(STATUS "Static analysis requested and enabled while compiling.")
+    elseif (ENABLE_STATIC_ANALYSIS STREQUAL "OFF")
+        message(STATUS "Static analysis available but disabled as requested.")
+    elseif (ENABLE_STATIC_ANALYSIS STREQUAL "AUTO")
+        if (CMAKE_BUILD_TYPE MATCHES Debug)
+            set(CXX_CLANG_TIDY ${CLANG_TIDY})
+            message(STATUS "Static analysis using clang-tidy is enabled while compiling.")
+        else ()
+            message(STATUS "Static analysis available but disabled in ${CMAKE_BUILD_TYPE} mode.")
+        endif ()
     else ()
-        message(STATUS "Static analysis available but disabled in ${CMAKE_BUILD_TYPE} mode.")
+        logFatalError("INTERNAL ERROR: value '${ENABLE_STATIC_ANALYSIS}' not managed")
     endif ()
 else ()
-    message(STATUS "Static analysis not available.")
+    if (ENABLE_STATIC_ANALYSIS STREQUAL "ON")
+        logFatalError("Static analysis requested but not available.")
+    elseif (ENABLE_STATIC_ANALYSIS STREQUAL "OFF" OR ENABLE_STATIC_ANALYSIS STREQUAL "AUTO")
+        message(STATUS "Static analysis not available.")
+    else ()
+        logFatalError("INTERNAL ERROR: value '${ENABLE_STATIC_ANALYSIS}' not managed")
+    endif ()
+endif ()
+
+#------------------------------------------------------
+
+# search for octave-config (for building Octave's mex library)
+find_program(OCTAVE_CONFIG_EXECUTABLE
+        NAMES octave-config
+        )
+if (OCTAVE_CONFIG_EXECUTABLE)
+    if (ENABLE_OCTAVE_BINDING STREQUAL "ON")
+        if (BUILD_SHARED_LIBS)
+            logFatalError("Octave binding requires static library mode")
+        else ()
+            add_subdirectory(bindings/Octave)
+            set(ENABLED_OCTAVE_BINDING ON)
+            message(STATUS "Octave binding enabled")
+        endif ()
+    elseif (ENABLE_OCTAVE_BINDING STREQUAL "OFF")
+        message(STATUS "Octave binding available but disabled as requested.")
+    elseif (ENABLE_OCTAVE_BINDING STREQUAL "AUTO")
+        if (BUILD_SHARED_LIBS)
+            message(STATUS "Octave binding disabled since it requires static library mode")
+        else ()
+            add_subdirectory(bindings/Octave)
+            set(ENABLED_OCTAVE_BINDING ON)
+            message(STATUS "Octave binding enabled")
+        endif ()
+    else ()
+        logFatalError("INTERNAL ERROR: value '${ENABLE_OCTAVE_BINDING}' not managed")
+    endif ()
+else ()
+    if (ENABLE_OCTAVE_BINDING STREQUAL "ON")
+        logFatalError("Octave binding requested but not available.")
+    elseif (ENABLE_OCTAVE_BINDING STREQUAL "OFF" OR ENABLE_OCTAVE_BINDING STREQUAL "AUTO")
+        message(STATUS "Octave binding not available.")
+    else ()
+        logFatalError("INTERNAL ERROR: value '${ENABLE_OCTAVE_BINDING}' not managed")
+    endif ()
+endif ()
+
+#------------------------------------------------------
+
+# search for python-config (for building Python module)
+
+
+# force pybind11 to use the right python interpreter, it could be useful 
+# to define CMAKE_PREFIX_PATH with PYTHON_PREFIX_PATH (cf carma CMake config)
+# pybind11 is loading manually to be always available even if conditionally not loaded by carma
+if (PYTHON_PREFIX_PATH)
+    set(CMAKE_PREFIX_PATH_SAVED ${CMAKE_PREFIX_PATH})
+    list(APPEND CMAKE_PREFIX_PATH ${PYTHON_PREFIX_PATH})
+endif()
+add_subdirectory(${LIBKRIGING_SOURCE_DIR}/dependencies/pybind11 pybind11)
+if (CMAKE_PREFIX_PATH_SAVED)
+    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH_SAVED})
+    unset(CMAKE_PREFIX_PATH_SAVED)
+endif()
+set(HAS_PYTHON_REQUIREMENT false)
+if (PYTHON_EXECUTABLE)
+    set(HAS_PYTHON_REQUIREMENT true)
+    set(PYTHON_REQUIRED_MODULE_LIST pytest numpy)
+    set(PYTHON_REQUIREMENT_INFO "\tpython3 interpreter found: ${PYTHON_EXECUTABLE}")
+    foreach(PYTHON_REQUIRED_MODULE ${PYTHON_REQUIRED_MODULE_LIST})
+        execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import ${PYTHON_REQUIRED_MODULE}"
+                        RESULT_VARIABLE PYTHON_IMPORT_RETCODE
+                        OUTPUT_QUIET ERROR_QUIET)
+        if (PYTHON_IMPORT_RETCODE EQUAL "0")
+            string(APPEND PYTHON_REQUIREMENT_INFO "\n\t✔ Module ${PYTHON_REQUIRED_MODULE} is available")
+        else()
+            string(APPEND PYTHON_REQUIREMENT_INFO "\n\t✘ Module ${PYTHON_REQUIRED_MODULE} is NOT available")
+            set(HAS_PYTHON_REQUIREMENT false)
+        endif()
+    endforeach()
+else()
+    set(PYTHON_REQUIREMENT_INFO "\tpython3 interpreter not found")
+endif()
+
+if (HAS_PYTHON_REQUIREMENT)
+    if (ENABLE_PYTHON_BINDING STREQUAL "ON")
+        add_subdirectory(bindings/Python)
+        set(ENABLED_PYTHON_BINDING ON)
+        message(STATUS "Python binding enabled")
+    elseif (ENABLE_PYTHON_BINDING STREQUAL "OFF")
+        message(STATUS "PYTHON binding available but disabled as requested.")
+    elseif (ENABLE_PYTHON_BINDING STREQUAL "AUTO")
+        add_subdirectory(bindings/Python)
+        set(ENABLED_PYTHON_BINDING ON)
+        message(STATUS "Python binding enabled")
+    else ()
+        logFatalError("INTERNAL ERROR: value '${ENABLE_PYTHON_BINDING}' not managed")
+    endif ()
+else ()
+    message(STATUS "Python requirement failure:\n${PYTHON_REQUIREMENT_INFO}")
+    if (ENABLE_PYTHON_BINDING STREQUAL "ON")
+        logFatalError("Python binding requested but not available.")
+    elseif (ENABLE_PYTHON_BINDING STREQUAL "OFF" OR ENABLE_PYTHON_BINDING STREQUAL "AUTO")
+        message(STATUS "Python binding not available.")
+    else ()
+        logFatalError("INTERNAL ERROR: value '${ENABLE_PYTHON_BINDING}' not managed")
+    endif ()
 endif ()
 
 #------------------------------------------------------
@@ -167,8 +334,8 @@ set(CATCH_MODULE_PATH "${LIBKRIGING_SOURCE_DIR}/dependencies/Catch2")
 include("${CATCH_MODULE_PATH}/contrib/ParseAndAddCatchTests.cmake")
 add_subdirectory("${CATCH_MODULE_PATH}")
 
-add_subdirectory(tests)
 enable_testing()
+add_subdirectory(tests)
 
 add_custom_target(run_unit_tests
         COMMAND ${CMAKE_CTEST_COMMAND} -j ${PROCESSOR_COUNT}
@@ -180,16 +347,16 @@ add_custom_target(run_unit_tests
 
 # unit tests coverage
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Coverage")
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Coverage")
     find_program(LCOV lcov)
-    if(NOT LCOV)
-        message(FATAL_ERROR "lcov not found, cannot perform coverage.")
-    endif()
+    if (NOT LCOV)
+        logFatalError("lcov not found, cannot perform coverage.")
+    endif ()
 
     # coveralls.io does not support striped paths
     #find_program (SED NAMES sed)
     #if (NOT SED)
-    #    message (FATAL_ERROR "Unable to find sed")
+    #    logFatalError("Unable to find sed")
     #else()
     #    # message(STATUS "sed found at ${SED}")
     #endif (NOT SED)
@@ -220,9 +387,9 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Coverage")
             )
 
     find_program(GENHTML genhtml)
-    if(NOT GENHTML)
+    if (NOT GENHTML)
         message(WARNING "genhtml not found, cannot perform report-coverage.")
-    else()
+    else ()
         add_custom_target(coverage-report
                 COMMAND ${CMAKE_COMMAND} -E remove_directory "${LIBKRIGING_BINARY_DIR}/coverage"
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBKRIGING_BINARY_DIR}/coverage"
@@ -232,8 +399,8 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Coverage")
                 COMMENT "Building coverage html report."
                 WORKING_DIRECTORY "${LIBKRIGING_BINARY_DIR}"
                 )
-    endif()
-else()
+    endif ()
+else ()
     add_custom_target(coverage
             COMMAND ${CMAKE_COMMAND} -E echo ""
             COMMAND ${CMAKE_COMMAND} -E echo "*** Use CMAKE_BUILD_TYPE=Coverage option in cmake configuration to enable code coverage ***"
@@ -241,28 +408,43 @@ else()
             COMMENT "Inform about not available code coverage."
             )
     add_custom_target(coverage-report DEPENDS coverage)
-endif()
+endif ()
 
 #------------------------------------------------------
 
 # search for clang-format and add target
 find_program(CLANG_FORMAT clang-format)
 if (CLANG_FORMAT)
-    add_custom_target(clang-format
-            COMMAND echo "running ${CLANG_FORMAT} ..."
-            COMMAND ${CMAKE_COMMAND}
-            -DLIBKRIGING_SOURCE_DIR="${LIBKRIGING_SOURCE_DIR}"
-            -DCLANG_FORMAT="${CLANG_FORMAT}"
-            -P ${LIBKRIGING_SOURCE_DIR}/cmake/ClangFormatProcess.cmake)
+    exec_program(${CLANG_FORMAT} ARGS -version
+            OUTPUT_VARIABLE CLANG_FORMAT_RAW_VERSION)
+    string(REGEX MATCH "[1-9][0-9]*\\.[0-9]+\\.[0-9]+"
+            CLANG_FORMAT_VERSION ${CLANG_FORMAT_RAW_VERSION})
+    if (CLANG_FORMAT_VERSION VERSION_GREATER_EQUAL "6.0.0")
+        add_custom_target(clang-format
+                COMMAND echo "running ${CLANG_FORMAT} ..."
+                COMMAND ${CMAKE_COMMAND}
+                -DLIBKRIGING_SOURCE_DIR="${LIBKRIGING_SOURCE_DIR}"
+                -DCLANG_FORMAT="${CLANG_FORMAT}"
+                -P ${LIBKRIGING_SOURCE_DIR}/cmake/ClangFormatProcess.cmake)
+        message(STATUS "clang-format target for updating code format is available")
+    else()
+        message(WARNING "incompatible clang-format found (<6.0.0); clang-format target is not available.")
+        add_custom_target(clang-format
+                COMMAND ${CMAKE_COMMAND} -E echo ""
+                COMMAND ${CMAKE_COMMAND} -E echo "*** code formatting not available since clang-format version is incompatible ***"
+                COMMAND ${CMAKE_COMMAND} -E echo ""
+                COMMENT "Inform about not available code format."
+                )
+    endif()
 else ()
     message(WARNING "clang-format no found; clang-format target is not available.")
     add_custom_target(clang-format
             COMMAND ${CMAKE_COMMAND} -E echo ""
             COMMAND ${CMAKE_COMMAND} -E echo "*** code formatting not available since clang-format has not been found ***"
             COMMAND ${CMAKE_COMMAND} -E echo ""
-            COMMENT "Inform about not available code coverage."
+            COMMENT "Inform about not available code format."
             )
-endif()
+endif ()
 
 #------------------------------------------------------
 
@@ -287,6 +469,7 @@ if (DOXYGEN_FOUND)
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating API documentation with Doxygen"
             VERBATIM)
+    message(STATUS "doc target for documentation generation is available")
 else ()
     message(WARNING "doxygen no found; doc target is not available.")
     add_custom_target(doc
@@ -295,13 +478,19 @@ else ()
             COMMAND ${CMAKE_COMMAND} -E echo ""
             COMMENT "Inform about not available doc generation."
             )
-endif()
+endif ()
 
 #------------------------------------------------------
 
-# Custom install.lib target whuch does not compile tests
+# Custom install.lib target which does not compile tests
 ADD_CUSTOM_TARGET(install.lib
         ${CMAKE_COMMAND}
         -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
         -P ${CMAKE_BINARY_DIR}/cmake_install.cmake)
 ADD_DEPENDENCIES(install.lib Kriging armadillo)
+if (ENABLED_PYTHON_BINDING)
+    ADD_DEPENDENCIES(install.lib pylibkriging)
+endif()
+if (ENABLED_OCTAVE_BINDING)
+    ADD_DEPENDENCIES(install.lib mLibKriging)
+endif()
