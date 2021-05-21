@@ -68,7 +68,7 @@ jobs:
             mode: Debug
             enable_python: on
           - name: "macOS 11 Debug"
-            os: macos-11
+            os: macos-11.0
             mode: Debug
             enable_python: on
           - name: "Windows Debug"
@@ -102,7 +102,7 @@ jobs:
             enable_python: off
             enable_octave: on
           - name: "Octave macOS 11"
-            os: macos-11
+            os: macos-11.0
             mode: Release
             enable_python: off
             enable_octave: on
@@ -123,7 +123,7 @@ jobs:
             mode: Release
             enable_R: on
           - name: "R macOS 11"
-            os: macos-11
+            os: macos-11.0
             mode: Release
             enable_R: on
           - name: "R Windows"
