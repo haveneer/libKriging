@@ -63,8 +63,12 @@ jobs:
             os: ubuntu-18.04
             mode: Debug
             enable_python: on
-          - name: "macOS Debug"
-            os: macOS-10.15
+          - name: "macOS 10 Debug"
+            os: macos-10.15
+            mode: Debug
+            enable_python: on
+          - name: "macOS 11 Debug"
+            os: macos-11
             mode: Debug
             enable_python: on
           - name: "Windows Debug"
@@ -92,8 +96,13 @@ jobs:
             enable_python: on
             enable_octave: on
             force_update: on
-          - name: "Octave macOS"
-            os: macOS-10.15
+          - name: "Octave macOS 10"
+            os: macos-10.15
+            mode: Release
+            enable_python: off
+            enable_octave: on
+          - name: "Octave macOS 11"
+            os: macos-11
             mode: Release
             enable_python: off
             enable_octave: on
@@ -109,8 +118,12 @@ jobs:
             os: ubuntu-18.04
             mode: Release
             enable_R: on
-          - name: "R macOS"
-            os: macOS-10.15
+          - name: "R macOS 10"
+            os: macos-10.15
+            mode: Release
+            enable_R: on
+          - name: "R macOS 11"
+            os: macos-11
             mode: Release
             enable_R: on
           - name: "R Windows"
