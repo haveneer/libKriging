@@ -141,9 +141,11 @@ jobs:
 
       - name: script
         shell: bash
-        run: |
-          .travis-ci/${BUILD_NAME}/build.sh
-          find build
+        run: .travis-ci/${BUILD_NAME}/build.sh
+
+      - name: log
+        shell: bash
+        run: find build
 
       - name: test
         shell: bash
