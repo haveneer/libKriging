@@ -145,7 +145,7 @@ jobs:
 
       - name: log
         shell: bash
-        run: find build
+        run: find build/bindings/Python
 
       - name: test
         shell: bash
