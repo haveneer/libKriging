@@ -151,10 +151,9 @@ jobs:
         shell: bash
         run: .travis-ci/${BUILD_NAME}/test.sh
 
-      - name: publish_report
-        shell: bash
-        run: |
-          cd build
-          lcov --list coverage.info
-          coveralls-lcov coverage.info
-        if: matrix.enable_coverage == 'on'
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: python-build
+          path: |
+            build
